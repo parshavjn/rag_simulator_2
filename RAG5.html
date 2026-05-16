@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Simulator</title>
+  <style>
+    :root{
+      --bg1:#0b1020;
+      --bg2:#111933;
+      --card:rgba(255,255,255,0.08);
+      --card-strong:rgba(255,255,255,0.12);
+      --line:rgba(255,255,255,0.14);
+      --text:#ecf3ff;
+      --muted:#a7b6d6;
+      --accent:#7c9cff;
+      --accent2:#4de2c5;
+      --accent3:#ffb86b;
+      --danger:#ff7b93;
+      --shadow:0 18px 60px rgba(0,0,0,0.35);
+      --radius:20px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text)}
+    body{
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(124,156,255,0.28), transparent 30%),
+        radial-gradient(circle at 80% 15%, rgba(77,226,197,0.18), transparent 24%),
+        radial-gradient(circle at 75% 75%, rgba(255,184,107,0.15), transparent 28%),
+        linear-gradient(145deg, var(--bg1), var(--bg2));
+      padding:24px;
+    }
+
+    .app{
+      max-width:1500px;
+      margin:0 auto;
+      display:grid;
+      gap:18px;
+    }
+
+    .glass{
+      background:var(--card);
+      border:1px solid var(--line);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+
+    .hero{
+      padding:24px;
+      display:grid;
+      grid-template-columns: 1.4fr 0.8fr;
+      gap:18px;
+      align-items:stretch;
+    }
+
+    .hero h1{
+      margin:0 0 10px;
+      font-size:clamp(28px, 4vw, 44px);
+      line-height:1.05;
+      letter-spacing:-0.03em;
+    }
+
+    .hero p{
+      margin:8px 0;
+      color:var(--muted);
+      line-height:1.65;
+    }
+
+    .badges{
+      margin-top:16px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+
+    .badge{
+      padding:10px 14px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.07);
+      border:1px solid rgba(255,255,255,0.12);
+      font-size:13px;
+      color:#d9e4ff;
+    }
+
+    .score{
+      padding:20px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:14px;
+    }
+
+    .meter{
+      height:14px;
+      background:rgba(255,255,255,0.08);
+      border-radius:999px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.12);
+    }
+
+    .meter > div{
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,var(--accent),var(--accent2));
+      border-radius:999px;
+      transition:width .45s ease;
+    }
+
+    .score-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .mini{
+      padding:14px;
+      border-radius:16px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .mini .k{
+      font-size:12px;color:var(--muted);margin-bottom:6px
+    }
+
+    .mini .v{
+      font-size:22px;font-weight:700
+    }
+
+    .controls{
+      padding:20px;
+      display:grid;
+      grid-template-columns:1.1fr 1fr;
+      gap:18px;
+    }
+
+    .panel-title{
+      margin:0 0 12px;
+      font-size:18px;
+      letter-spacing:-0.02em;
+    }
+
+    label{
+      display:block;
+      margin:10px 0 8px;
+      color:#dbe7ff;
+      font-size:14px;
+    }
+
+    textarea, input, select{
+      width:100%;
+      background:rgba(7,11,22,0.45);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:16px;
+      padding:14px 16px;
+      font:inherit;
+      outline:none;
+      transition:.2s ease;
+    }
+
+    textarea:focus, input:focus, select:focus{
+      border-color:rgba(124,156,255,0.8);
+      box-shadow:0 0 0 4px rgba(124,156,255,0.14);
+    }
+
+    textarea{
+      min-height:180px;
+      resize:vertical;
+      line-height:1.55;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .btns{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:16px;
+    }
+
+    button{
+      appearance:none;
+      border:none;
+      border-radius:14px;
+      padding:12px 16px;
+      color:white;
+      background:linear-gradient(135deg, var(--accent), #5f7cff);
+      font:inherit;
+      font-weight:700;
+      cursor:pointer;
+      box-shadow:0 10px 26px rgba(92,120,255,0.28);
+      transition:transform .15s ease, opacity .2s ease, box-shadow .2s ease;
+    }
+
+    button:hover{transform:translateY(-1px)}
+    button.secondary{
+      background:rgba(255,255,255,0.08);
+      box-shadow:none;
+      border:1px solid rgba(255,255,255,0.1);
+      color:#e6eeff;
+    }
+
+    button.warn{
+      background:linear-gradient(135deg, #ff8ca1, var(--danger));
+      box-shadow:0 10px 26px rgba(255,123,147,0.24);
+    }
+
+    .pipeline{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:18px;
+    }
+
+    .stage{
+      padding:18px;
+      min-height:260px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .stage::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(180deg, rgba(255,255,255,0.04), transparent 30%);
+      pointer-events:none;
+    }
+
+    .stage-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .stage h3{
+      margin:0;
+      font-size:17px;
+    }
+
+    .stage small{
+      color:var(--muted);
+    }
+
+    .stage-body{
+      display:grid;
+      gap:10px;
+      max-height:560px;
+      overflow:auto;
+      padding-right:4px;
+    }
+
+    .item{
+      padding:12px;
+      border-radius:14px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .item strong{display:block;margin-bottom:6px}
+    .meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+    }
+
+    .pill{
+      font-size:12px;
+      color:#d9e4ff;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.1);
+      background:rgba(255,255,255,0.06);
+    }
+
+    .rank{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      font-size:13px;
+      margin-top:8px;
+      color:var(--muted);
+    }
+
+    .bars{
+      display:grid;
+      gap:8px;
+      margin-top:10px;
+    }
+
+    .bar-wrap{
+      display:grid;
+      grid-template-columns: 90px 1fr 56px;
+      gap:8px;
+      align-items:center;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .bar{
+      height:10px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.08);
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .bar > span{
+      display:block;
+      height:100%;
+      border-radius:999px;
+      background:linear-gradient(90deg,var(--accent2),var(--accent));
+    }
+
+    .wide{
+      padding:20px;
+    }
+
+    .output-grid{
+      display:grid;
+      grid-template-columns:1.1fr 0.9fr;
+      gap:18px;
+    }
+
+    .answer{
+      white-space:pre-wrap;
+      line-height:1.72;
+      color:#eff5ff;
+      font-size:15px;
+    }
+
+    .codebox{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      background:rgba(9,14,27,0.52);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:16px;
+      padding:16px;
+      color:#d9e7ff;
+      white-space:pre-wrap;
+      line-height:1.55;
+      overflow:auto;
+      min-height:260px;
+    }
+
+    .legend{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      margin-top:10px;
+    }
+
+    .legend .item{
+      min-height:unset;
+    }
+
+    .subtle{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+    }
+
+    .steps{
+      counter-reset:step;
+      display:grid;
+      gap:12px;
+      margin-top:12px;
+    }
+
+    .step{
+      padding:12px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .step::before{
+      counter-increment:step;
+      content:counter(step);
+      display:inline-grid;
+      place-items:center;
+      width:26px;
+      height:26px;
+      margin-right:10px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:white;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .footer-note{
+      padding:16px 18px;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.7;
+    }
+
+    .highlight{
+      color:#fff;
+      font-weight:700;
+    }
+
+    @media (max-width: 1200px){
+      .pipeline{grid-template-columns:repeat(2,1fr)}
+      .hero,.controls,.output-grid{grid-template-columns:1fr}
+      .legend{grid-template-columns:repeat(2,1fr)}
+    }
+
+    @media (max-width: 760px){
+      body{padding:14px}
+      .pipeline,.legend,.row{grid-template-columns:1fr}
+      .hero,.controls,.wide,.score,.stage{padding:16px}
+      .bar-wrap{grid-template-columns:72px 1fr 48px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero glass">
+      <div>
+        <h1>RAG Simulator</h1>
+        <p>
+          Understand Retrieval-Augmented Generation step by step: ingestion, chunking, metadata, embeddings,
+          hybrid retrieval, reranking, prompt grounding, and answer generation.
+        </p>
+        <p>
+          This is a teaching tool, not a production RAG engine. It approximates the ideas so you can visualize
+          the pipeline and see what each stage contributes.
+        </p>
+        <div class="badges">
+          <span class="badge">Chunking</span>
+          <span class="badge">Metadata</span>
+          <span class="badge">Embeddings</span>
+          <span class="badge">Hybrid Search</span>
+          <span class="badge">Reranking</span>
+          <span class="badge">Prompt Grounding</span>
+          <span class="badge">Answer Generation</span>
+        </div>
+      </div>
+
+      <div class="score glass">
+        <div>
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:end">
+            <div>
+              <div class="subtle">Your earlier mental model coverage</div>
+              <div style="font-size:36px;font-weight:800;letter-spacing:-0.04em" id="understandingScore">8/10</div>
+            </div>
+            <div class="subtle" style="max-width:220px;text-align:right">
+              Missing pieces usually include chunking strategy, metadata, hybrid retrieval, reranking, and evaluation.
+            </div>
+          </div>
+          <div class="meter" style="margin-top:14px">
+            <div id="understandingBar" style="width:80%"></div>
+          </div>
+        </div>
+
+        <div class="score-grid">
+          <div class="mini">
+            <div class="k">Knowledge docs</div>
+            <div class="v" id="docCount">3</div>
+          </div>
+          <div class="mini">
+            <div class="k">Chunks created</div>
+            <div class="v" id="chunkCount">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Retrieved</div>
+            <div class="v" id="retrievedCount">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Reranked top</div>
+            <div class="v" id="topChunkLabel">-</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls glass">
+      <div>
+        <h2 class="panel-title">1. Knowledge base</h2>
+        <label for="kbInput">Paste or edit your documents</label>
+        <textarea id="kbInput">[Doc: RAG Basics | category: AI | date: 2026-05-10]
+RAG stands for Retrieval-Augmented Generation. A typical pipeline starts with ingesting documents, cleaning text, splitting content into chunks, attaching metadata, generating embeddings, and indexing those vectors. When a user asks a question, the system retrieves relevant chunks and adds them to the prompt so the language model can answer using external knowledge.
+
+[Doc: Why Chunking Matters | category: AI | date: 2026-05-11]
+Chunking is critical because large documents do not fit neatly into retrieval and prompt windows. Good chunking preserves meaning, often with overlap between chunks. Common methods include fixed-size chunking, sentence-based chunking, paragraph-based chunking, and semantic chunking. Metadata like source title, section, and date helps filtering and trust.
+
+[Doc: Advanced Retrieval | category: Search | date: 2026-05-12]
+Modern RAG often uses hybrid retrieval, combining dense vector similarity with keyword matching. After initial retrieval, a reranker can reorder candidates to improve precision. The final prompt usually contains instructions to stay grounded in context, cite sources, and say when the answer is not supported by the retrieved evidence.</textarea>
+
+        <div class="row">
+          <div>
+            <label for="chunkSize">Chunk size</label>
+            <input id="chunkSize" type="range" min="120" max="420" step="20" value="220" />
+            <div class="subtle"><span id="chunkSizeValue">220</span> characters per chunk</div>
+          </div>
+          <div>
+            <label for="overlap">Chunk overlap</label>
+            <input id="overlap" type="range" min="0" max="120" step="10" value="50" />
+            <div class="subtle"><span id="overlapValue">50</span> characters overlap</div>
+          </div>
+        </div>
+
+        <div class="btns">
+          <button id="buildBtn">Build knowledge index</button>
+          <button id="loadSampleBtn" class="secondary">Load PM-style sample</button>
+          <button id="resetBtn" class="warn">Reset simulator</button>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="panel-title">2. User query</h2>
+        <label for="queryInput">Ask a question</label>
+        <textarea id="queryInput" style="min-height:140px">Why is chunking important in RAG, and how do hybrid retrieval and reranking improve results?</textarea>
+
+        <div class="row">
+          <div>
+            <label for="topK">Retrieve top-k</label>
+            <select id="topK">
+              <option value="2">2 chunks</option>
+              <option value="3" selected>3 chunks</option>
+              <option value="4">4 chunks</option>
+              <option value="5">5 chunks</option>
+            </select>
+          </div>
+          <div>
+            <label for="retrievalMode">Retrieval mode</label>
+            <select id="retrievalMode">
+              <option value="vector">Vector only</option>
+              <option value="keyword">Keyword only</option>
+              <option value="hybrid" selected>Hybrid</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btns">
+          <button id="runQueryBtn">Run RAG query</button>
+          <button id="explainBtn" class="secondary">Explain each step</button>
+        </div>
+
+        <div class="steps" id="explainSteps" style="display:none">
+          <div class="step">Ingest documents and parse metadata like title, category, and date.</div>
+          <div class="step">Split each document into chunks using size and overlap settings.</div>
+          <div class="step">Create a pseudo-embedding for every chunk so we can compare semantic similarity.</div>
+          <div class="step">Convert the user query into the same embedding space.</div>
+          <div class="step">Retrieve candidate chunks using vector search, keyword search, or both.</div>
+          <div class="step">Rerank candidates using a blended relevance score.</div>
+          <div class="step">Build a grounded prompt that contains instructions plus retrieved evidence.</div>
+          <div class="step">Generate a simulated answer that only uses the selected chunks.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pipeline">
+      <div class="stage glass">
+        <div class="stage-head">
+          <div>
+            <h3>Ingestion</h3>
+            <small>Docs + metadata</small>
+          </div>
+        </div>
+        <div class="stage-body" id="docsPanel"></div>
+      </div>
+
+      <div class="stage glass">
+        <div class="stage-head">
+          <div>
+            <h3>Chunking</h3>
+            <small>Split + overlap</small>
+          </div>
+        </div>
+        <div class="stage-body" id="chunksPanel"></div>
+      </div>
+
+      <div class="stage glass">
+        <div class="stage-head">
+          <div>
+            <h3>Embeddings</h3>
+            <small>Vector sketch</small>
+          </div>
+        </div>
+        <div class="stage-body" id="embeddingsPanel"></div>
+      </div>
+
+      <div class="stage glass">
+        <div class="stage-head">
+          <div>
+            <h3>Retrieval</h3>
+            <small>Vector / keyword / hybrid</small>
+          </div>
+        </div>
+        <div class="stage-body" id="retrievalPanel"></div>
+      </div>
+    </section>
+
+    <section class="wide glass">
+      <div class="output-grid">
+        <div>
+          <h2 class="panel-title">Prompt grounding</h2>
+          <div class="codebox" id="promptBox">Build the index, then run a query to see the grounded prompt.</div>
+        </div>
+        <div>
+          <h2 class="panel-title">Generated answer</h2>
+          <div class="item answer" id="answerBox">Your simulated answer will appear here.</div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="item">
+          <strong>Vector score</strong>
+          Semantic closeness between query embedding and chunk embedding.
+        </div>
+        <div class="item">
+          <strong>Keyword score</strong>
+          Exact or near-exact term overlap between query and chunk.
+        </div>
+        <div class="item">
+          <strong>Hybrid score</strong>
+          Weighted blend of vector and keyword signals.
+        </div>
+        <div class="item">
+          <strong>Rerank score</strong>
+          Final ordering signal before chunks are inserted into the prompt.
+        </div>
+      </div>
+    </section>
+
+    <div class="footer-note glass">
+      This simulator uses lightweight browser-side approximations to teach the RAG pipeline. Real systems use dedicated embedding models, vector databases, hybrid search engines, rerankers, access control, observability, and evaluation loops.
+    </div>
+  </div>
+
+  <script>
+    const kbInput = document.getElementById('kbInput');
+    const queryInput = document.getElementById('queryInput');
+    const docsPanel = document.getElementById('docsPanel');
+    const chunksPanel = document.getElementById('chunksPanel');
+    const embeddingsPanel = document.getElementById('embeddingsPanel');
+    const retrievalPanel = document.getElementById('retrievalPanel');
+    const promptBox = document.getElementById('promptBox');
+    const answerBox = document.getElementById('answerBox');
+    const chunkSize = document.getElementById('chunkSize');
+    const overlap = document.getElementById('overlap');
+    const chunkSizeValue = document.getElementById('chunkSizeValue');
+    const overlapValue = document.getElementById('overlapValue');
+    const buildBtn = document.getElementById('buildBtn');
+    const runQueryBtn = document.getElementById('runQueryBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const loadSampleBtn = document.getElementById('loadSampleBtn');
+    const explainBtn = document.getElementById('explainBtn');
+    const explainSteps = document.getElementById('explainSteps');
+    const topKSelect = document.getElementById('topK');
+    const retrievalMode = document.getElementById('retrievalMode');
+    const docCount = document.getElementById('docCount');
+    const chunkCount = document.getElementById('chunkCount');
+    const retrievedCount = document.getElementById('retrievedCount');
+    const topChunkLabel = document.getElementById('topChunkLabel');
+
+    let docs = [];
+    let chunks = [];
+    let lastResults = [];
+
+    const stopwords = new Set([
+      "the","a","an","is","are","was","were","and","or","to","of","in","on","for","with","as","by","it",
+      "this","that","be","from","at","into","when","how","why","what","which","do","does","did","so","can",
+      "using","use","used","than","then","them","they","their","you","your","we","our","but","not","only"
+    ]);
+
+    chunkSize.addEventListener('input', () => chunkSizeValue.textContent = chunkSize.value);
+    overlap.addEventListener('input', () => overlapValue.textContent = overlap.value);
+
+    explainBtn.addEventListener('click', () => {
+      explainSteps.style.display = explainSteps.style.display === 'none' ? 'grid' : 'none';
+    });
+
+    function escapeHtml(str){
+      return str
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;');
+    }
+
+    function tokenize(text){
+      return text.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, ' ')
+        .split(/\s+/)
+        .map(t => t.trim())
+        .filter(Boolean);
+    }
+
+    function keywords(text){
+      const tokens = tokenize(text).filter(t => !stopwords.has(t) && t.length > 2);
+      const freq = {};
+      for(const t of tokens) freq[t] = (freq[t] || 0) + 1;
+      return freq;
+    }
+
+    function parseDocs(raw){
+      const parts = raw.split(/\n\s*\n(?=\[Doc:)/g).map(s => s.trim()).filter(Boolean);
+      return parts.map((part, index) => {
+        const lines = part.split('\n');
+        const head = lines[0] || '';
+        const body = lines.slice(1).join(' ').trim();
+        const m = head.match(/\[Doc:\s*(.*?)\s*\|\s*category:\s*(.*?)\s*\|\s*date:\s*(.*?)\]/i);
+        return {
+          id: index + 1,
+          title: m ? m[1].trim() : `Document ${index + 1}`,
+          category: m ? m[2].trim() : 'General',
+          date: m ? m[3].trim() : 'Unknown',
+          text: body
+        };
+      });
+    }
+
+    function chunkText(text, size, overlapSize){
+      const out = [];
+      let start = 0;
+      if(size <= overlapSize) overlapSize = Math.max(0, size - 20);
+      while(start < text.length){
+        let end = Math.min(start + size, text.length);
+        if(end < text.length){
+          const boundary = text.lastIndexOf('.', end);
+          if(boundary > start + Math.floor(size * 0.55)) end = boundary + 1;
+        }
+        const piece = text.slice(start, end).trim();
+        if(piece) out.push(piece);
+        if(end >= text.length) break;
+        start = Math.max(end - overlapSize, start + 1);
+      }
+      return out;
+    }
+
+    function pseudoEmbedding(text){
+      const dims = 12;
+      const vec = Array(dims).fill(0);
+      const toks = tokenize(text);
+      for(const tok of toks){
+        let h = 0;
+        for(let i=0;i<tok.length;i++) h = (h * 31 + tok.charCodeAt(i)) % 1000003;
+        vec[h % dims] += 1;
+        vec[(h * 7) % dims] += tok.length > 6 ? 0.6 : 0.2;
+      }
+      const norm = Math.sqrt(vec.reduce((s,v)=>s+v*v,0)) || 1;
+      return vec.map(v => v / norm);
+    }
+
+    function cosine(a,b){
+      return a.reduce((s,v,i)=>s+v*b[i],0);
+    }
+
+    function keywordScore(query, text){
+      const q = keywords(query);
+      const d = keywords(text);
+      const qTerms = Object.keys(q);
+      if(!qTerms.length) return 0;
+      let hits = 0;
+      let total = 0;
+      qTerms.forEach(term => {
+        total += q[term];
+        if(d[term]) hits += Math.min(q[term], d[term]);
+      });
+      const exact = hits / total;
+
+      const qTokens = qTerms;
+      const tTokens = Object.keys(d);
+      let fuzzy = 0;
+      for(const qt of qTokens){
+        if(tTokens.some(tt => tt.includes(qt) || qt.includes(tt))) fuzzy += 1;
+      }
+      fuzzy = qTokens.length ? fuzzy / qTokens.length : 0;
+      return Math.min(1, exact * 0.8 + fuzzy * 0.2);
+    }
+
+    function highlightTerms(text, query){
+      const terms = [...new Set(tokenize(query).filter(t => t.length > 3 && !stopwords.has(t)))].slice(0,8);
+      let out = escapeHtml(text);
+      terms.forEach(term => {
+        const re = new RegExp(`\\b(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'ig');
+        out = out.replace(re, '<span class="highlight">$1</span>');
+      });
+      return out;
+    }
+
+    function buildIndex(){
+      docs = parseDocs(kbInput.value);
+      const size = parseInt(chunkSize.value, 10);
+      const ov = parseInt(overlap.value, 10);
+
+      chunks = [];
+      docs.forEach(doc => {
+        const pieces = chunkText(doc.text, size, ov);
+        pieces.forEach((piece, idx) => {
+          const embedding = pseudoEmbedding(piece);
+          chunks.push({
+            id: `D${doc.id}-C${idx+1}`,
+            docId: doc.id,
+            title: doc.title,
+            category: doc.category,
+            date: doc.date,
+            text: piece,
+            embedding,
+            kw: keywords(piece),
+            length: piece.length,
+            position: idx + 1
+          });
+        });
+      });
+
+      renderDocs();
+      renderChunks();
+      renderEmbeddings();
+      retrievalPanel.innerHTML = '';
+      promptBox.textContent = 'Index built. Run a query to see retrieval, reranking, and prompt grounding.';
+      answerBox.textContent = 'Your simulated answer will appear here.';
+      docCount.textContent = docs.length;
+      chunkCount.textContent = chunks.length;
+      retrievedCount.textContent = 0;
+      topChunkLabel.textContent = '-';
+      lastResults = [];
+    }
+
+    function renderDocs(){
+      docsPanel.innerHTML = docs.map(doc => `
+        <div class="item">
+          <strong>${escapeHtml(doc.title)}</strong>
+          <div>${escapeHtml(doc.text.slice(0, 180))}${doc.text.length > 180 ? '...' : ''}</div>
+          <div class="meta">
+            <span class="pill">Doc ${doc.id}</span>
+            <span class="pill">${escapeHtml(doc.category)}</span>
+            <span class="pill">${escapeHtml(doc.date)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderChunks(){
+      chunksPanel.innerHTML = chunks.map(ch => `
+        <div class="item">
+          <strong>${ch.id} · ${escapeHtml(ch.title)}</strong>
+          <div>${escapeHtml(ch.text.slice(0, 160))}${ch.text.length > 160 ? '...' : ''}</div>
+          <div class="rank">
+            <span>Position ${ch.position}</span>
+            <span>${ch.length} chars</span>
+          </div>
+          <div class="meta">
+            <span class="pill">${escapeHtml(ch.category)}</span>
+            <span class="pill">${escapeHtml(ch.date)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderEmbeddings(){
+      embeddingsPanel.innerHTML = chunks.map(ch => {
+        const bars = ch.embedding.map((v,i) => `
+          <div class="bar-wrap">
+            <span>dim ${i+1}</span>
+            <div class="bar"><span style="width:${Math.round(v * 100)}%"></span></div>
+            <span>${v.toFixed(2)}</span>
+          </div>
+        `).join('');
+        return `
+          <div class="item">
+            <strong>${ch.id}</strong>
+            <div class="subtle">Pseudo-embedding vector</div>
+            <div class="bars">${bars}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function runQuery(){
+      if(!chunks.length) buildIndex();
+
+      const query = queryInput.value.trim();
+      const mode = retrievalMode.value;
+      const topK = parseInt(topKSelect.value, 10);
+      const qVec = pseudoEmbedding(query);
+
+      const scored = chunks.map(ch => {
+        const vector = cosine(qVec, ch.embedding);
+        const keyword = keywordScore(query, ch.text + ' ' + ch.title + ' ' + ch.category);
+        let retrieval = 0;
+        if(mode === 'vector') retrieval = vector;
+        else if(mode === 'keyword') retrieval = keyword;
+        else retrieval = vector * 0.65 + keyword * 0.35;
+
+        const metadataBoost =
+          (tokenize(query).includes(ch.category.toLowerCase()) ? 0.05 : 0) +
+          (/latest|recent|new/.test(query.toLowerCase()) ? 0.03 : 0);
+
+        const rerank = retrieval * 0.78 + keyword * 0.12 + metadataBoost + Math.min(ch.length / 400, 0.08);
+
+        return {...ch, vector, keyword, retrieval, rerank};
+      });
+
+      const retrieved = [...scored]
+        .sort((a,b) => b.retrieval - a.retrieval)
+        .slice(0, Math.max(topK * 2, topK));
+
+      const reranked = [...retrieved]
+        .sort((a,b) => b.rerank - a.rerank)
+        .slice(0, topK);
+
+      lastResults = reranked;
+      retrievedCount.textContent = reranked.length;
+      topChunkLabel.textContent = reranked[0] ? reranked[0].id : '-';
+
+      retrievalPanel.innerHTML = reranked.map((r, idx) => `
+        <div class="item">
+          <strong>#${idx+1} ${r.id} · ${escapeHtml(r.title)}</strong>
+          <div>${highlightTerms(r.text.slice(0, 220) + (r.text.length > 220 ? '...' : ''), query)}</div>
+          <div class="bars">
+            <div class="bar-wrap">
+              <span>vector</span>
+              <div class="bar"><span style="width:${Math.max(0, Math.min(100, r.vector * 100))}%"></span></div>
+              <span>${r.vector.toFixed(2)}</span>
+            </div>
+            <div class="bar-wrap">
+              <span>keyword</span>
+              <div class="bar"><span style="width:${Math.max(0, Math.min(100, r.keyword * 100))}%"></span></div>
+              <span>${r.keyword.toFixed(2)}</span>
+            </div>
+            <div class="bar-wrap">
+              <span>retrieve</span>
+              <div class="bar"><span style="width:${Math.max(0, Math.min(100, r.retrieval * 100))}%"></span></div>
+              <span>${r.retrieval.toFixed(2)}</span>
+            </div>
+            <div class="bar-wrap">
+              <span>rerank</span>
+              <div class="bar"><span style="width:${Math.max(0, Math.min(100, r.rerank * 100))}%"></span></div>
+              <span>${r.rerank.toFixed(2)}</span>
+            </div>
+          </div>
+          <div class="meta">
+            <span class="pill">${escapeHtml(r.category)}</span>
+            <span class="pill">${escapeHtml(r.date)}</span>
+            <span class="pill">Chunk ${r.position}</span>
+          </div>
+        </div>
+      `).join('');
+
+      const groundedPrompt = [
+        "SYSTEM:",
+        "You are a grounded assistant. Answer only from the provided context.",
+        "If the context is insufficient, say so clearly.",
+        "",
+        "USER QUESTION:",
+        query,
+        "",
+        "RETRIEVED CONTEXT:"
+      ];
+
+      reranked.forEach((r, idx) => {
+        groundedPrompt.push(
+          `[${idx+1}] Source: ${r.title} | Category: ${r.category} | Date: ${r.date} | Chunk: ${r.id}`,
+          r.text,
+          ""
+        );
+      });
+
+      groundedPrompt.push("TASK:");
+      groundedPrompt.push("Synthesize a concise answer using the retrieved evidence.");
+      promptBox.textContent = groundedPrompt.join('\n');
+
+      answerBox.textContent = generateAnswer(query, reranked);
+    }
+
+    function generateAnswer(query, results){
+      if(!results.length){
+        return "No relevant chunks were retrieved, so the system cannot ground an answer.";
+      }
+
+      const joined = results.map(r => r.text).join(" ");
+      const q = query.toLowerCase();
+
+      let bullets = [];
+
+      if(q.includes("chunk")){
+        bullets.push("Chunking matters because large documents are too broad for accurate retrieval and prompt assembly. Splitting them into smaller pieces helps the system fetch only the most relevant evidence.");
+        bullets.push("Overlap between chunks preserves continuity, so important ideas are less likely to be cut off at chunk boundaries.");
+      }
+
+      if(q.includes("hybrid")){
+        bullets.push("Hybrid retrieval improves results by combining semantic similarity with keyword matching. Vector search catches meaning, while keyword search catches exact terms and phrases.");
+      }
+
+      if(q.includes("rerank")){
+        bullets.push("Reranking improves precision after initial retrieval. It reorders candidate chunks so the prompt contains the strongest evidence instead of simply the first approximate matches.");
+      }
+
+      if(q.includes("metadata") || q.includes("filter")){
+        bullets.push("Metadata helps constrain retrieval by source, date, category, or permissions, which improves trust and relevance.");
+      }
+
+      if(q.includes("prompt") || q.includes("ground")){
+        bullets.push("Grounding works by inserting selected chunks into a structured prompt with instructions to answer only from the provided context.");
+      }
+
+      if(!bullets.length){
+        const sentences = joined.split(/(?<=[.!?])\s+/).filter(Boolean).slice(0,4);
+        bullets = sentences.map(s => s.trim());
+      }
+
+      const sources = results.map(r => `${r.id} (${r.title})`).join(", ");
+
+      return [
+        "Simulated grounded answer:",
+        "",
+        ...bullets.map(b => `• ${b}`),
+        "",
+        `Evidence used: ${sources}`,
+        "",
+        "Why this helps you understand RAG:",
+        "• The answer was not generated from the query alone.",
+        "• It depended on retrieved chunks from the indexed knowledge base.",
+        "• Better chunking, retrieval, and reranking usually produce a better answer."
+      ].join("\n");
+    }
+
+    function resetAll(){
+      docs = [];
+      chunks = [];
+      lastResults = [];
+      docsPanel.innerHTML = '';
+      chunksPanel.innerHTML = '';
+      embeddingsPanel.innerHTML = '';
+      retrievalPanel.innerHTML = '';
+      promptBox.textContent = 'Build the index, then run a query to see the grounded prompt.';
+      answerBox.textContent = 'Your simulated answer will appear here.';
+      chunkCount.textContent = 0;
+      retrievedCount.textContent = 0;
+      topChunkLabel.textContent = '-';
+    }
+
+    loadSampleBtn.addEventListener('click', () => {
+      kbInput.value = `[Doc: Product Docs Search | category: PM | date: 2026-05-09]
+A product team may use RAG to answer questions from internal documentation, release notes, PRDs, support guides, and research summaries. Metadata can include product area, owner, version, and publish date. This allows filtering so users see answers grounded in the right product scope.
+
+[Doc: Evaluating RAG | category: Analytics | date: 2026-05-13]
+A strong RAG system is evaluated on retrieval relevance, faithfulness, groundedness, latency, and cost. If retrieval quality is poor, the generator may still hallucinate even when the model itself is strong. Teams often tune chunk size, overlap, top-k, retrieval mix, and reranking.
+
+[Doc: Search Techniques | category: Search | date: 2026-05-12]
+Dense retrieval captures semantic meaning. Sparse retrieval or keyword retrieval captures exact phrases, identifiers, and acronyms. Hybrid retrieval combines both. A reranker can then score the combined candidates more precisely before sending the top evidence to the model.`;
+      queryInput.value = "How do metadata, hybrid retrieval, and evaluation improve a product-document RAG system?";
+      buildIndex();
+    });
+
+    buildBtn.addEventListener('click', buildIndex);
+    runQueryBtn.addEventListener('click', runQuery);
+    resetBtn.addEventListener('click', resetAll);
+
+    buildIndex();
+  </script>
+</body>
+</html>
